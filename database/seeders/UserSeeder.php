@@ -7,18 +7,22 @@ use App\Models\User;
 
 class UserSeeder extends Seeder
 {
-    public function run()
+    public function run(): void
     {
-        User::create([
-            'name' => 'Administrador',
-            'email' => 'admin@admin.com',
-            'password' => bcrypt('12345678'),
-        ]);
-        
-        User::create([
-            'name' => 'Carlos',
-            'email' => 'carlos@gmail.com',
-            'password' => bcrypt('carlos12345'),
-        ]);
+        User::firstOrCreate(
+            ['email' => 'admin@admin.com'],
+            [
+                'name' => 'Administrador',
+                'password' => bcrypt('12345678'),
+            ]
+        );
+
+        User::firstOrCreate(
+            ['email' => 'carlos@gmail.com'],
+            [
+                'name' => 'Carlos',
+                'password' => bcrypt('carlos12345'),
+            ]
+        );
     }
 }

@@ -31,12 +31,14 @@
             <p class="relative text-sm text-blue-100/70">Acceso privado para la administración de la liga</p>
         </aside>
 
-        <main class="flex items-center justify-center px-5 py-10 sm:px-8">
+        <main class="flex items-center justify-center bg-slate-50 px-5 py-10 sm:px-8 lg:px-12">
             <div class="w-full max-w-md">
-                <a href="{{ route('inicio') }}" class="mb-8 inline-flex items-center gap-2 text-sm font-bold text-slate-400 hover:text-white lg:hidden">
+                <a href="{{ route('inicio') }}" class="mb-8 inline-flex items-center gap-2 text-sm font-bold text-slate-700 hover:text-green-800 lg:hidden">
                     <span class="text-xl">⚽</span> Liga Española
                 </a>
-                {{ $slot }}
+                <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-xl sm:p-8">
+                    {{ $slot }}
+                </div>
                 <p class="mt-8 text-center text-xs text-slate-500">&copy; {{ date('Y') }} Liga Española · Administración</p>
             </div>
         </main>
