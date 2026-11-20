@@ -23,8 +23,8 @@
                 <h1 class="mt-5 text-5xl font-extrabold leading-tight">Cada jornada, bajo control.</h1>
                 <p class="mt-5 text-lg leading-relaxed text-blue-100">Organiza equipos, jornadas y resultados desde un solo lugar.</p>
                 <div class="mt-10 flex gap-3">
-                    <span class="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm">8 equipos</span>
-                    <span class="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm">7 jornadas</span>
+                    <span class="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm">Todos los equipos</span>
+                    <span class="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm">Todos contra todos</span>
                     <span class="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm">Liguilla</span>
                 </div>
             </div>

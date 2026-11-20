@@ -40,12 +40,12 @@ class TemporadaController extends Controller
         }
 
         if (! $this->resultadosCompletos($temporada)) {
-            return back()->with('error', 'Completa los 28 resultados de las 7 jornadas antes de finalizar la temporada.');
+            return back()->with('error', 'Completa todos los resultados de la fase regular antes de finalizar la temporada.');
         }
 
         $clasificacion = $clasificacionService->obtener($temporada);
-        if ($clasificacion->count() !== 8) {
-            return back()->with('error', 'La liguilla requiere exactamente 8 equipos participantes.');
+        if ($clasificacion->count() < 8) {
+            return back()->with('error', 'La liguilla principal requiere al menos 8 equipos participantes.');
         }
 
         $ultimoPartido = $temporada->partidos()->max('fecha');
@@ -77,11 +77,25 @@ class TemporadaController extends Controller
                     'lugar' => $camposCuartos[$indice],
                 ]);
             }
+
+            if ($clasificacion->count() >= 16) {
+                foreach ([[8, 15], [9, 14], [10, 13], [11, 12]] as [$local, $visitante]) {
+                    Eliminatoria::create([
+                        'temporada_id' => $temporada->id,
+                        'fase' => 'Consolación Cuartos',
+                        'equipo_local_id' => $clasificacion[$local]->id,
+                        'equipo_visitante_id' => $clasificacion[$visitante]->id,
+                        'fecha' => $fechaCuartos->copy()
+                            ->setTimeFromTimeString('16:00'),
+                        'lugar' => $camposCuartos[$indice],
+                    ]);
+                }
+            }
         });
 
         return redirect()
             ->route('admin.temporadas.liguilla', $temporada->id)
-            ->with('success', 'Temporada finalizada y liguilla creada.');
+            ->with('success', 'Temporada finalizada; se creó la liguilla principal y, cuando hay 16 equipos, la de consolación.');
     }
 
     public function show($id)
@@ -106,9 +120,9 @@ class TemporadaController extends Controller
             return back()->with('error', 'Finaliza la temporada activa antes de crear otra.');
         }
 
-        $equipos = Equipo::orderBy('id')->limit(8)->get();
-        if ($equipos->count() !== 8) {
-            return back()->with('error', 'Se necesitan 8 equipos registrados para iniciar una temporada.');
+        $equipos = Equipo::orderBy('id')->get();
+        if ($equipos->count() < 8) {
+            return back()->with('error', 'Se necesitan al menos 8 equipos registrados para iniciar una temporada.');
         }
 
         $ultimaTemporada = Temporada::latest('id')->first();
@@ -132,6 +146,9 @@ class TemporadaController extends Controller
         }
 
         $ids = $equipos->pluck('id')->toArray();
+        if (count($ids) % 2 !== 0) {
+            $ids[] = null;
+        }
         $numEquipos = count($ids);
         $numJornadas = $numEquipos - 1;
         $desplazamiento = Temporada::whereNotNull('campeon_id')->count() % $numJornadas;
@@ -142,12 +159,6 @@ class TemporadaController extends Controller
         $fecha = Carbon::now()
             ->next(Carbon::SUNDAY)
             ->setTime(8, 0);
-        $horarios = [
-            '08:00',
-            '10:00',
-            '12:00',
-            '14:00',
-        ];
         $campos = [
             'Cancha Central',
             'Estadio Municipal',
@@ -155,7 +166,7 @@ class TemporadaController extends Controller
             'Campo Sur',
         ];
 
-        $temporada = DB::transaction(function () use ($nombre, $tipo, $ids, $numEquipos, $numJornadas, $fecha, $horarios, $campos) {
+        $temporada = DB::transaction(function () use ($nombre, $tipo, $ids, $numEquipos, $numJornadas, $fecha, $campos) {
             $temporada = Temporada::create([
                 'nombre' => $nombre,
                 'tipo' => $tipo,
@@ -169,23 +180,46 @@ class TemporadaController extends Controller
                     'temporada_id' => $temporada->id,
                 ]);
 
+                $partidosJornada = [];
                 for ($i = 0; $i < $numEquipos / 2; $i++) {
                     $local = $ids[$i];
                     $visitante = $ids[$numEquipos - 1 - $i];
+
+                    if ($local === null || $visitante === null) {
+                        continue;
+                    }
 
                     if ($j % 2 === 1) {
                         [$local, $visitante] = [$visitante, $local];
                     }
 
-                    $indiceRotacion = ($i + $j) % count($horarios);
-                    $horaPartido = $horarios[$indiceRotacion];
+                    $partidosJornada[] = [
+                        'equipo_local_id' => $local,
+                        'equipo_visitante_id' => $visitante,
+                    ];
+                }
+
+                $desplazamientoPartidos = $j % count($partidosJornada);
+                $partidosJornada = array_merge(
+                    array_slice($partidosJornada, $desplazamientoPartidos),
+                    array_slice($partidosJornada, 0, $desplazamientoPartidos)
+                );
+
+                foreach ($partidosJornada as $indice => $partido) {
+                    $indiceCancha = ($indice + $j) % count($campos);
+                    $indiceHorario = count($partidosJornada) <= count($campos)
+                        ? $indice
+                        : intdiv($indice, count($campos));
+                    $horaPartido = $fecha->copy()
+                        ->setTime(8, 0)
+                        ->addHours(2 * $indiceHorario);
                     Partido::create([
                         'jornada_id' => $jornada->id,
                         'temporada_id' => $temporada->id,
-                        'equipo_local_id' => $local,
-                        'equipo_visitante_id' => $visitante,
-                        'fecha' => $fecha->copy()->setTimeFromTimeString($horaPartido),
-                        'lugar' => $campos[$indiceRotacion],
+                        'equipo_local_id' => $partido['equipo_local_id'],
+                        'equipo_visitante_id' => $partido['equipo_visitante_id'],
+                        'fecha' => $horaPartido,
+                        'lugar' => $campos[$indiceCancha],
                         'goles_local' => null,
                         'goles_visitante' => null,
                     ]);
@@ -200,7 +234,7 @@ class TemporadaController extends Controller
 
         return redirect()
             ->route('admin.temporadas.show', $temporada->id)
-            ->with('success', 'Temporada creada con 8 equipos y 7 jornadas. El calendario inicia con cruces distintos a los de la temporada anterior.');
+            ->with('success', 'Temporada creada con todos los equipos registrados y calendario a una vuelta.');
     }
 
     private function rotarEquipos(array $ids): array
@@ -287,11 +321,21 @@ class TemporadaController extends Controller
 
     private function resultadosCompletos(Temporada $temporada): bool
     {
-        if ($temporada->partidos()->count() !== 28) {
+        $partidos = $temporada->partidos();
+        $totalPartidos = (clone $partidos)->count();
+        $equiposParticipantes = (clone $partidos)
+            ->get(['equipo_local_id', 'equipo_visitante_id'])
+            ->flatMap(fn (Partido $partido) => [$partido->equipo_local_id, $partido->equipo_visitante_id])
+            ->filter()
+            ->unique()
+            ->count();
+
+        $partidosEsperados = intdiv($equiposParticipantes * ($equiposParticipantes - 1), 2);
+        if ($equiposParticipantes < 8 || $totalPartidos !== $partidosEsperados) {
             return false;
         }
 
-        return ! $temporada->partidos()
+        return ! $partidos
             ->where(function ($query) {
                 $query->whereNull('goles_local')
                     ->orWhereNull('goles_visitante');

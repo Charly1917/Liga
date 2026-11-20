@@ -5,6 +5,9 @@
         $cuartos = $temporada->eliminatorias->where('fase', 'Cuartos')->sortBy('id')->values();
         $semis = $temporada->eliminatorias->where('fase', 'Semifinal')->sortBy('id')->values();
         $final = $temporada->eliminatorias->where('fase', 'Final')->sortBy('id')->values();
+        $consolacionCuartos = $temporada->eliminatorias->where('fase', 'Consolación Cuartos')->sortBy('id')->values();
+        $consolacionSemis = $temporada->eliminatorias->where('fase', 'Consolación Semifinal')->sortBy('id')->values();
+        $consolacionFinal = $temporada->eliminatorias->where('fase', 'Consolación Final')->sortBy('id')->values();
     @endphp
 
     <a href="{{ route('admin.temporadas.show', $temporada->id) }}"
@@ -164,5 +167,48 @@
                 </section>
             </div>
         </div>
+    @endif
+
+    @if($vistaPrevia && $clasificacion->count() >= 16)
+        <section class="mt-8 rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+            <h2 class="font-extrabold text-amber-950 text-xl">Liguilla de consolación · puestos 9.º al 16.º</h2>
+            <p class="mt-1 text-sm text-amber-900">Este cuadro es independiente y no modifica los cruces por el campeonato.</p>
+            <div class="mt-4 grid md:grid-cols-2 xl:grid-cols-4 gap-3">
+                @foreach([[8, 15], [9, 14], [10, 13], [11, 12]] as $cruce)
+                    <article class="rounded-xl border border-amber-200 bg-white p-4">
+                        <p class="text-xs font-extrabold uppercase text-amber-700">Consolación · Cuartos</p>
+                        <p class="mt-3 font-bold">{{ $clasificacion[$cruce[0]]->nombre }} <span class="text-xs text-slate-400">({{ $cruce[0] + 1 }}.º)</span></p>
+                        <p class="my-1 text-center text-xs text-slate-400">vs</p>
+                        <p class="font-bold">{{ $clasificacion[$cruce[1]]->nombre }} <span class="text-xs text-slate-400">({{ $cruce[1] + 1 }}.º)</span></p>
+                    </article>
+                @endforeach
+            </div>
+        </section>
+    @elseif(!$vistaPrevia && $consolacionCuartos->isNotEmpty())
+        <section class="mt-8 rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+            <h2 class="font-extrabold text-amber-950 text-xl">Liguilla de consolación · puestos 9.º al 16.º</h2>
+            <p class="mt-1 text-sm text-amber-900">Cuadro independiente de la liguilla principal.</p>
+            <div class="mt-5 grid xl:grid-cols-3 gap-5">
+                @foreach([
+                    ['titulo' => 'Cuartos de consolación', 'partidos' => $consolacionCuartos],
+                    ['titulo' => 'Semifinales de consolación', 'partidos' => $consolacionSemis],
+                    ['titulo' => 'Final de consolación', 'partidos' => $consolacionFinal],
+                ] as $fase)
+                    <section class="rounded-xl border border-amber-200 bg-white p-4">
+                        <h3 class="font-extrabold text-amber-950 mb-4">{{ $fase['titulo'] }}</h3>
+                        <div class="space-y-4">
+                            @forelse($fase['partidos'] as $indice => $partido)
+                                @include('admin.temporadas.partials.partido_eliminatoria', [
+                                    'partido' => $partido,
+                                    'numeroCruce' => $fase['titulo'] . ' ' . ($indice + 1),
+                                ])
+                            @empty
+                                <p class="text-sm text-slate-500">Se habilitará al terminar la fase anterior.</p>
+                            @endforelse
+                        </div>
+                    </section>
+                @endforeach
+            </div>
+        </section>
     @endif
 @endsection

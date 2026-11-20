@@ -8,9 +8,9 @@ use App\Models\User;
 use App\Services\ClasificacionService;
 use App\Services\CampeonService;
 
-it('genera siete jornadas para ocho equipos y crea la liguilla al finalizar', function () {
+it('genera una vuelta para todos los equipos y crea la liguilla principal al finalizar', function () {
     $usuario = User::factory()->create();
-    collect(range(1, 9))->each(function ($numero) {
+    collect(range(1, 8))->each(function ($numero) {
         return Equipo::create([
             'nombre' => 'Equipo ' . $numero,
             'logo' => 'equipo-' . $numero . '.png',
@@ -358,6 +358,151 @@ it('genera siete jornadas para ocho equipos y crea la liguilla al finalizar', fu
         ->assertOk()
         ->assertSee('Campeón defensor')
         ->assertSee($campeon->nombre);
+});
+
+it('incluye los 20 equipos y mantiene independiente la liguilla de consolación', function () {
+    $usuario = User::factory()->create();
+    $equipos = collect(range(1, 20))->map(function ($numero) {
+        return Equipo::create([
+            'nombre' => sprintf('Club %02d', $numero),
+            'logo' => 'club-' . $numero . '.png',
+        ]);
+    });
+
+    $this->actingAs($usuario)
+        ->get(route('admin.temporadas.generar'))
+        ->assertRedirect(route('admin.temporadas.show', 1));
+
+    $temporada = Temporada::findOrFail(1);
+    $partidos = $temporada->partidos;
+    expect($temporada->jornadas)->toHaveCount(19)
+        ->and($partidos)->toHaveCount(190)
+        ->and($partidos->pluck('equipo_local_id')->merge($partidos->pluck('equipo_visitante_id'))->unique())
+        ->toHaveCount(20)
+        ->and($partidos->groupBy(function (Partido $partido) {
+            $ids = [$partido->equipo_local_id, $partido->equipo_visitante_id];
+            sort($ids);
+
+            return implode('-', $ids);
+        }))->toHaveCount(190);
+
+    foreach ($equipos as $equipo) {
+        $partidosDelEquipo = $partidos->filter(fn (Partido $partido) => in_array(
+            $equipo->id,
+            [$partido->equipo_local_id, $partido->equipo_visitante_id]
+        ));
+        $posicionesDelRol = $partidosDelEquipo->map(function (Partido $partido) use ($partidos) {
+            return $partidos
+                ->where('jornada_id', $partido->jornada_id)
+                ->sortBy('fecha')
+                ->values()
+                ->search(fn (Partido $partidoDeJornada) => $partidoDeJornada->id === $partido->id);
+        })->unique();
+
+        expect($partidosDelEquipo)->toHaveCount(19)
+            ->and($partidosDelEquipo->pluck('fecha')->map(fn ($fecha) => $fecha->format('H:i'))->unique())
+            ->toHaveCount(3)
+            ->and($posicionesDelRol->count())->toBeGreaterThan(1);
+    }
+
+    foreach ($temporada->jornadas as $jornada) {
+        $partidosDeJornada = $partidos->where('jornada_id', $jornada->id);
+        $horariosYcanchas = $partidosDeJornada->map(
+            fn (Partido $partido) => $partido->fecha->format('H:i') . '|' . $partido->lugar
+        )->unique();
+
+        expect($horariosYcanchas)->toHaveCount($partidosDeJornada->count());
+    }
+
+    $temporada->partidos()->update([
+        'goles_local' => 0,
+        'goles_visitante' => 0,
+    ]);
+
+    $this->actingAs($usuario)
+        ->get(route('admin.temporadas.liguilla', $temporada->id))
+        ->assertOk()
+        ->assertSee('Liguilla de consolación')
+        ->assertSee('Club 09')
+        ->assertSee('Club 16');
+
+    $this->actingAs($usuario)
+        ->get(route('admin.temporadas.finalizar', $temporada->id))
+        ->assertRedirect(route('admin.temporadas.liguilla', $temporada->id));
+
+    $clasificacion = app(ClasificacionService::class)->obtener($temporada)->values();
+    $cuartos = $temporada->eliminatorias()->where('fase', 'Cuartos')->orderBy('id')->get();
+    $cuartosConsolacion = $temporada->eliminatorias()
+        ->where('fase', 'Consolación Cuartos')
+        ->orderBy('id')
+        ->get();
+
+    expect($cuartos)->toHaveCount(4)
+        ->and($cuartosConsolacion)->toHaveCount(4)
+        ->and([$cuartosConsolacion[0]->equipo_local_id, $cuartosConsolacion[0]->equipo_visitante_id])
+        ->toBe([$clasificacion[8]->id, $clasificacion[15]->id])
+        ->and([$cuartosConsolacion[3]->equipo_local_id, $cuartosConsolacion[3]->equipo_visitante_id])
+        ->toBe([$clasificacion[11]->id, $clasificacion[12]->id]);
+
+    foreach ($cuartos->concat($cuartosConsolacion) as $partido) {
+        $this->actingAs($usuario)
+            ->post(route('admin.eliminatorias.resultado', $partido->id), [
+                'goles_local' => 1,
+                'goles_visitante' => 0,
+            ])
+            ->assertRedirect();
+    }
+
+    $semifinales = $temporada->eliminatorias()->where('fase', 'Semifinal')->get();
+    $semifinalesConsolacion = $temporada->eliminatorias()
+        ->where('fase', 'Consolación Semifinal')
+        ->get();
+    expect($semifinales)->toHaveCount(2)
+        ->and($semifinalesConsolacion)->toHaveCount(2);
+
+    foreach ($semifinalesConsolacion as $partido) {
+        $this->actingAs($usuario)
+            ->post(route('admin.eliminatorias.resultado', $partido->id), [
+                'goles_local' => 2,
+                'goles_visitante' => 0,
+            ])
+            ->assertRedirect();
+    }
+
+    $finalConsolacion = $temporada->eliminatorias()
+        ->where('fase', 'Consolación Final')
+        ->firstOrFail();
+    $this->actingAs($usuario)
+        ->post(route('admin.eliminatorias.resultado', $finalConsolacion->id), [
+            'goles_local' => 1,
+            'goles_visitante' => 0,
+        ])
+        ->assertRedirect();
+    expect($temporada->fresh()->campeon_id)->toBeNull();
+
+    foreach ($semifinales as $partido) {
+        $this->actingAs($usuario)
+            ->post(route('admin.eliminatorias.resultado', $partido->id), [
+                'goles_local' => 1,
+                'goles_visitante' => 0,
+            ])
+            ->assertRedirect();
+    }
+
+    $finalPrincipal = $temporada->eliminatorias()->where('fase', 'Final')->firstOrFail();
+    $this->actingAs($usuario)
+        ->post(route('admin.eliminatorias.resultado', $finalPrincipal->id), [
+            'goles_local' => 1,
+            'goles_visitante' => 0,
+        ])
+        ->assertRedirect();
+    expect($temporada->fresh()->campeon_id)->toBe($finalPrincipal->equipo_local_id);
+
+    $this->get(route('liguilla', ['temporada' => $temporada->id]))
+        ->assertOk()
+        ->assertSee('Liguilla de consolación')
+        ->assertSee('Cuartos de consolación')
+        ->assertSee('Final de consolación');
 });
 
 it('calcula puntos y goles únicamente con los marcadores completos de la temporada', function () {

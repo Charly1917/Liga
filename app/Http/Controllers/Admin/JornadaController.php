@@ -24,6 +24,7 @@ class JornadaController extends Controller
         $partidos = $jornadaSeleccionada
             ? Partido::with(['equipoLocal', 'equipoVisitante'])
                 ->where('jornada_id', $jornadaSeleccionada->id)
+                ->orderBy('fecha')
                 ->orderBy('id')
                 ->get()
             : collect();

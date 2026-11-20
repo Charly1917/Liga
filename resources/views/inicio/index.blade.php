@@ -8,7 +8,7 @@
                 <h1 class="text-4xl md:text-6xl font-extrabold leading-tight">Tu equipo merece jugar en grande.</h1>
                 <p class="mt-5 text-lg text-blue-100 max-w-xl">
                     Una liga organizada para competir, convivir y llevar el fútbol local al siguiente nivel.
-                    Temporadas con ocho equipos, siete jornadas y liguilla por el campeonato.
+                    Temporadas con todos los equipos registrados, una vuelta de todos contra todos y liguilla por el campeonato.
                 </p>
                 <a href="https://wa.me/?text={{ urlencode('Hola, quiero informes para inscribir a mi equipo en la liga.') }}"
                    target="_blank" rel="noopener noreferrer"
@@ -19,8 +19,8 @@
             <div class="bg-white/10 border border-white/20 rounded-2xl p-8">
                 <div class="text-6xl mb-4" aria-hidden="true">⚽</div>
                 <p class="text-sm uppercase tracking-widest text-blue-200">Formato de competencia</p>
-                <p class="text-3xl font-extrabold mt-2">8 equipos · 7 jornadas</p>
-                <p class="text-blue-100 mt-3">Todos juegan una vez entre sí y después disputan cuartos, semifinales y final.</p>
+                <p class="text-3xl font-extrabold mt-2">Todos los equipos · Todos contra todos</p>
+                <p class="text-blue-100 mt-3">Los primeros 8 disputan el campeonato; los puestos 9.º al 16.º tienen liguilla de consolación.</p>
                 @if($temporada)
                     <p class="mt-6 pt-5 border-t border-white/20">
                         <span class="text-blue-200">Temporada:</span>

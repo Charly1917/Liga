@@ -38,6 +38,7 @@ class PartidosController extends Controller
         $partidos = $jornadaSeleccionada
             ? $jornadaSeleccionada->partidos()
                 ->with(['equipoLocal', 'equipoVisitante'])
+                ->orderBy('fecha')
                 ->orderBy('id')
                 ->get()
             : collect();
@@ -117,7 +118,11 @@ class PartidosController extends Controller
             ?? Temporada::latest('id')->first();
         $jornadas = $temporada
             ? $temporada->jornadas()
-                ->with(['partidos.equipoLocal', 'partidos.equipoVisitante'])
+                ->with([
+                    'partidos' => fn ($query) => $query->orderBy('fecha')->orderBy('id'),
+                    'partidos.equipoLocal',
+                    'partidos.equipoVisitante',
+                ])
                 ->orderBy('numero')
                 ->get()
             : collect();

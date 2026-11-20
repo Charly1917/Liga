@@ -20,7 +20,7 @@ class ClasificacionService
 
         $ids = $partidos->flatMap(function ($partido) {
             return [$partido->equipo_local_id, $partido->equipo_visitante_id];
-        })->unique()->values();
+        })->filter()->unique()->values();
 
         $equipos = Equipo::whereIn('id', $ids)->get();
         $estadisticas = [];

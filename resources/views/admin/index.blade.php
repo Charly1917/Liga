@@ -53,7 +53,7 @@
             <div class="p-5 md:p-6 border-b border-slate-100 flex justify-between items-center gap-3">
                 <div>
                     <h2 class="text-xl font-extrabold text-[#0a1a44]">Calendario de la temporada</h2>
-                    <p class="text-sm text-slate-500 mt-1">Siete jornadas · una vuelta</p>
+                    <p class="text-sm text-slate-500 mt-1">{{ $jornadas->count() }} jornadas · todos contra todos</p>
                 </div>
                 <a href="{{ route('admin.jornadas.index') }}" class="text-sm font-bold text-green-700 hover:underline">Abrir calendario</a>
             </div>
@@ -62,7 +62,7 @@
                     @if($ultimaTemporada && !$ultimaTemporada->campeon_id)
                         Completa la liguilla para coronar al campeón y habilitar una nueva temporada.
                     @else
-                        Crea una temporada para generar las 7 jornadas.
+                        Crea una temporada para generar el calendario de todos los equipos registrados.
                     @endif
                 </p>
             @else

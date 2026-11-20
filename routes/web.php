@@ -33,20 +33,23 @@ Route::middleware('auth')->group(function () {
             ? $temporada->jornadas()->withCount('partidos')->orderBy('numero')->get()
             : collect();
         $partidosCount = $temporada ? $temporada->partidos()->count() : 0;
+        $idsEquipos = $temporada
+            ? $temporada->partidos()->get(['equipo_local_id', 'equipo_visitante_id'])
+                ->flatMap(fn ($partido) => [$partido->equipo_local_id, $partido->equipo_visitante_id])
+                ->filter()
+                ->unique()
+                ->values()
+            : collect();
+        $partidosEsperados = intdiv($idsEquipos->count() * ($idsEquipos->count() - 1), 2);
         $temporadaCompleta = $temporada
-            && $partidosCount === 28
+            && $idsEquipos->count() >= 8
+            && $partidosCount === $partidosEsperados
             && ! $temporada->partidos()
                 ->where(function ($query) {
                     $query->whereNull('goles_local')
                         ->orWhereNull('goles_visitante');
                 })
                 ->exists();
-        $idsEquipos = $temporada
-            ? $temporada->partidos()->get(['equipo_local_id', 'equipo_visitante_id'])
-                ->flatMap(fn ($partido) => [$partido->equipo_local_id, $partido->equipo_visitante_id])
-                ->unique()
-                ->values()
-            : collect();
         $equiposTemporada = $idsEquipos->isNotEmpty()
             ? Equipo::whereIn('id', $idsEquipos)->orderBy('nombre')->get()
             : Equipo::orderBy('nombre')->get();

@@ -5,7 +5,7 @@
         <p class="text-sm uppercase tracking-widest text-green-700 font-extrabold">Calendario de juego</p>
         <h1 class="text-3xl md:text-4xl font-extrabold text-[#0a1a44] mt-1">Jornadas</h1>
         @if($temporada)
-            <p class="text-slate-500 mt-2">{{ $temporada->nombre }} {{ $temporada->tipo }} · {{ $jornadas->count() }} de 7 jornadas</p>
+            <p class="text-slate-500 mt-2">{{ $temporada->nombre }} {{ $temporada->tipo }} · {{ $jornadas->count() }} jornadas</p>
         @endif
     </div>
 
@@ -17,7 +17,7 @@
     @else
         <div class="grid lg:grid-cols-[280px_1fr] gap-6">
             <aside class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h2 class="font-extrabold text-slate-900 mb-4">Las 7 jornadas</h2>
+                <h2 class="font-extrabold text-slate-900 mb-4">Jornadas</h2>
                 <nav class="space-y-2">
                     @foreach($jornadas as $jornada)
                         <a href="{{ route('admin.jornadas.index', ['jornada' => $jornada->id]) }}"

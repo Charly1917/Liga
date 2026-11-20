@@ -36,7 +36,7 @@
     </div>
 
     <p class="text-gray-600 mb-6">
-        Cada temporada se genera con los primeros 8 equipos registrados y 7 jornadas a una vuelta. La siguiente se habilita cuando termina la liguilla y se registra al campeón.
+        Cada temporada se genera con todos los equipos registrados y una vuelta de todos contra todos. Los primeros 8 disputan la liguilla principal; los puestos 9.º al 16.º disputan la de consolación. La siguiente temporada se habilita al registrar al campeón.
     </p>
 
 

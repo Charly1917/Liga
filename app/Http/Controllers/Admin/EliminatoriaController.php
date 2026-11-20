@@ -72,12 +72,25 @@ class EliminatoriaController extends Controller
 
         ]);
 
-        $this->crearSemifinales($eliminatoria->temporada_id);
+        if ($eliminatoria->fase === 'Cuartos') {
+            $this->crearSemifinales($eliminatoria->temporada_id, 'Cuartos', 'Semifinal');
+        } elseif ($eliminatoria->fase === 'Semifinal') {
+            $this->crearFinal($eliminatoria->temporada_id, 'Semifinal', 'Final');
+        } elseif ($eliminatoria->fase === 'Consolación Cuartos') {
+            $this->crearSemifinales(
+                $eliminatoria->temporada_id,
+                'Consolación Cuartos',
+                'Consolación Semifinal'
+            );
+        } elseif ($eliminatoria->fase === 'Consolación Semifinal') {
+            $this->crearFinal(
+                $eliminatoria->temporada_id,
+                'Consolación Semifinal',
+                'Consolación Final'
+            );
+        }
 
-        $this->crearFinal($eliminatoria->temporada_id);
-
-        if ($eliminatoria->fase == 'Final') {
-
+        if ($eliminatoria->fase === 'Final') {
             $eliminatoria->temporada->update([
                 'campeon_id' => $ganador,
                 'fecha_fin' => now(),
@@ -90,11 +103,11 @@ class EliminatoriaController extends Controller
         );
     }
 
-    private function crearSemifinales($temporadaId)
+    private function crearSemifinales($temporadaId, string $faseCuartos, string $faseSemifinal)
     {
 
         $cuartos = Eliminatoria::where('temporada_id', $temporadaId)
-            ->where('fase', 'Cuartos')
+            ->where('fase', $faseCuartos)
             ->whereNotNull('ganador_id')
             ->orderBy('id')
             ->get();
@@ -108,7 +121,7 @@ class EliminatoriaController extends Controller
 
         // Evitar crear semifinales dos veces
         $existe = Eliminatoria::where('temporada_id', $temporadaId)
-            ->where('fase', 'Semifinal')
+            ->where('fase', $faseSemifinal)
             ->exists();
 
 
@@ -119,13 +132,13 @@ class EliminatoriaController extends Controller
 
         $ganadores = $cuartos->pluck('ganador_id')->values();
         $fechaSemifinales = $this->siguienteSemana($cuartos->max(fn (Eliminatoria $partido) => $partido->fecha));
-        $horarios = ['10:00', '14:00'];
+        $horarios = $faseCuartos === 'Cuartos' ? ['10:00', '14:00'] : ['16:00', '18:00'];
         $campos = ['Cancha Central', 'Estadio Municipal'];
 
         foreach ([[0, 3], [1, 2]] as $indice => [$local, $visitante]) {
             Eliminatoria::create([
                 'temporada_id' => $temporadaId,
-                'fase' => 'Semifinal',
+                'fase' => $faseSemifinal,
                 'equipo_local_id' => $ganadores[$local],
                 'equipo_visitante_id' => $ganadores[$visitante],
                 'fecha' => $fechaSemifinales->copy()
@@ -135,11 +148,11 @@ class EliminatoriaController extends Controller
         }
     }
 
-    private function crearFinal($temporadaId)
+    private function crearFinal($temporadaId, string $faseSemifinal, string $faseFinal)
     {
 
         $semifinales = Eliminatoria::where('temporada_id', $temporadaId)
-            ->where('fase', 'Semifinal')
+            ->where('fase', $faseSemifinal)
             ->whereNotNull('ganador_id')
             ->orderBy('id')
             ->get();
@@ -153,7 +166,7 @@ class EliminatoriaController extends Controller
 
         // Evitar duplicar final
         $existe = Eliminatoria::where('temporada_id', $temporadaId)
-            ->where('fase', 'Final')
+            ->where('fase', $faseFinal)
             ->exists();
 
 
@@ -170,10 +183,12 @@ class EliminatoriaController extends Controller
 
         Eliminatoria::create([
             'temporada_id' => $temporadaId,
-            'fase' => 'Final',
+            'fase' => $faseFinal,
             'equipo_local_id' => $ganadores[0],
             'equipo_visitante_id' => $ganadores[1],
-            'fecha' => $fechaFinal->copy()->setTimeFromTimeString('14:00'),
+            'fecha' => $fechaFinal->copy()->setTimeFromTimeString(
+                $faseFinal === 'Final' ? '14:00' : '18:00'
+            ),
             'lugar' => 'Cancha Central',
         ]);
     }

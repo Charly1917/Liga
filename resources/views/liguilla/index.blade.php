@@ -5,6 +5,9 @@
         $cuartos = $temporada ? $temporada->eliminatorias->where('fase', 'Cuartos')->values() : collect();
         $semifinales = $temporada ? $temporada->eliminatorias->where('fase', 'Semifinal')->values() : collect();
         $final = $temporada ? $temporada->eliminatorias->where('fase', 'Final')->values() : collect();
+        $consolacionCuartos = $temporada ? $temporada->eliminatorias->where('fase', 'Consolación Cuartos')->values() : collect();
+        $consolacionSemifinales = $temporada ? $temporada->eliminatorias->where('fase', 'Consolación Semifinal')->values() : collect();
+        $consolacionFinal = $temporada ? $temporada->eliminatorias->where('fase', 'Consolación Final')->values() : collect();
         $crearPartidoCompartible = function ($partido, $fase, $numero, $localAlterno, $visitanteAlterno, $agenda = null) {
             $fecha = $partido ? $partido->fecha : ($agenda['fecha'] ?? null);
 
@@ -67,6 +70,30 @@
             ->concat($datosSemifinales)
             ->concat($datosFinal)
             ->values();
+        $partidosConsolacion = $consolacionCuartos
+            ->map(fn ($partido, $indice) => $crearPartidoCompartible(
+                $partido,
+                'CONSOLACIÓN · CUARTOS',
+                '· CRUCE ' . ($indice + 1),
+                'Por definir',
+                'Por definir'
+            ))
+            ->concat($consolacionSemifinales->map(fn ($partido, $indice) => $crearPartidoCompartible(
+                $partido,
+                'CONSOLACIÓN · SEMIFINAL',
+                $indice + 1,
+                'Por definir',
+                'Por definir'
+            )))
+            ->concat($consolacionFinal->map(fn ($partido) => $crearPartidoCompartible(
+                $partido,
+                'CONSOLACIÓN · FINAL',
+                '',
+                'Por definir',
+                'Por definir'
+            )))
+            ->values();
+        $partidosParaCompartir = $partidosParaCompartir->concat($partidosConsolacion)->values();
     @endphp
 
     <section class="relative overflow-hidden bg-gradient-to-br from-[#071332] via-[#10265b] to-emerald-900 text-white">
@@ -187,7 +214,7 @@
                     <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                         <div class="mb-5 flex items-center justify-between">
                             <h3 class="text-xl font-black text-[#0a1a44]">Cuartos de final</h3>
-                            <span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-extrabold text-emerald-800">8 equipos</span>
+                            <span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-extrabold text-emerald-800">Puestos 1.º–8.º</span>
                         </div>
                         <div class="space-y-3">
                             @forelse($cuartos as $partido)
@@ -297,6 +324,61 @@
                     @endforeach
                 </div>
             </section>
+            @if($consolacionCuartos->isNotEmpty())
+                <section class="mt-10 rounded-3xl border border-amber-200 bg-amber-50 p-5 md:p-7">
+                    <div class="mb-6">
+                        <p class="text-sm font-extrabold uppercase tracking-[0.2em] text-amber-700">Cuadro independiente</p>
+                        <h2 class="mt-1 text-3xl font-black text-amber-950">Liguilla de consolación</h2>
+                        <p class="mt-2 text-slate-600">Participan los puestos 9.º al 16.º. Este torneo no cambia ni sustituye la liguilla por el campeonato.</p>
+                    </div>
+                    <div class="grid gap-5 lg:grid-cols-3">
+                        @foreach([
+                            ['titulo' => 'Cuartos de consolación', 'partidos' => $consolacionCuartos],
+                            ['titulo' => 'Semifinales de consolación', 'partidos' => $consolacionSemifinales],
+                            ['titulo' => 'Final de consolación', 'partidos' => $consolacionFinal],
+                        ] as $fase)
+                            <section class="rounded-2xl border border-amber-200 bg-white p-5 shadow-sm">
+                                <div class="mb-4 flex items-center justify-between gap-2">
+                                    <h3 class="font-black text-amber-950">{{ $fase['titulo'] }}</h3>
+                                    <span class="rounded-full bg-amber-100 px-3 py-1 text-xs font-extrabold text-amber-900">{{ $fase['partidos']->count() }} partidos</span>
+                                </div>
+                                <div class="space-y-3">
+                                    @forelse($fase['partidos'] as $partido)
+                                        <article class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                            <p class="mb-2 text-xs font-extrabold uppercase tracking-wider text-amber-700">
+                                                {{ $fase['titulo'] === 'Final de consolación' ? 'Por el título de consolación' : ($fase['titulo'] === 'Cuartos de consolación' ? 'Cruce ' . $loop->iteration : 'Semifinal ' . $loop->iteration) }}
+                                            </p>
+                                            @if($partido->fecha)
+                                                <p class="mb-2 text-xs font-semibold text-slate-500">
+                                                    Domingo · {{ $partido->fecha->format('d/m/Y · H:i') }}
+                                                    @if($partido->lugar) · {{ $partido->lugar }} @endif
+                                                </p>
+                                            @endif
+                                            @foreach([
+                                                ['equipo' => $partido->equipoLocal, 'id' => $partido->equipo_local_id, 'goles' => $partido->goles_local],
+                                                ['equipo' => $partido->equipoVisitante, 'id' => $partido->equipo_visitante_id, 'goles' => $partido->goles_visitante],
+                                            ] as $participante)
+                                                <div class="flex items-center justify-between gap-3 py-2 {{ !$loop->last ? 'border-b border-slate-200' : '' }} {{ $partido->ganador_id === $participante['id'] ? 'font-extrabold text-amber-700' : 'text-slate-700' }}">
+                                                    <span class="flex min-w-0 items-center gap-2">
+                                                        <x-equipo-escudo :equipo="$participante['equipo']" tamano="h-8 w-8" />
+                                                        <span class="truncate">{{ $participante['equipo']->nombre }}</span>
+                                                    </span>
+                                                    <span class="font-black">{{ $participante['goles'] ?? '—' }}</span>
+                                                </div>
+                                            @endforeach
+                                            @if($partido->penales_local !== null)
+                                                <p class="mt-2 text-center text-xs font-semibold text-slate-500">Penales: {{ $partido->penales_local }} - {{ $partido->penales_visitante }}</p>
+                                            @endif
+                                        </article>
+                                    @empty
+                                        <p class="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Se habilitará al terminar la fase anterior.</p>
+                                    @endforelse
+                                </div>
+                            </section>
+                        @endforeach
+                    </div>
+                </section>
+            @endif
             <script src="{{ asset('js/compartir-rol.js') }}" defer></script>
         @endif
     </main>
